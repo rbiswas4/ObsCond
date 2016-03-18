@@ -1,0 +1,16 @@
+language: C
+
+install:
+  - CHANNEL=http://eupsforge.net/conda/dev ./ci/install.sh lsst-sims pandas nose
+
+cache:
+  directories:
+  - $HOME/miniconda.tarball
+
+# A trivial example to show that this worked
+script:
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - source eups-setups.sh
+  - setup sims_maf
+  - python -c 'import lsst.sims.maf; print lsst.sims.maf.__file__'
+
