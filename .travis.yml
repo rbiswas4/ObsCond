@@ -13,6 +13,6 @@ cache:
 script:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
-  - setup sims_maf
-  - python -c 'import lsst.sims.maf; print lsst.sims.maf.__file__'
+  - setup lsst_sims
+  - nosetests -v
 
