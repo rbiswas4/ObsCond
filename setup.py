@@ -15,11 +15,11 @@ versionRegExp = re.compile("__version__ = \"(.*?)\"")
 # Assign to __version__
 __version__ =  versionRegExp.findall(s)[0]
 
-setup(name='ObsCond',
+setup(name='obscond',
       version=__version__,
       description='Interpolating Observing Conditions from historic data',
       packages=['obscond'],
       package_dir={'obscond': 'obscond'},
-      package_data={'obscond': ['obscond/example_data/*.txt', 'obscond/example_data/*.md']},
+      package_data={'obscond': ['example_data/*.txt', 'example_data/*.md']},
       include_package_data=True
      )
