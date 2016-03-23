@@ -27,7 +27,7 @@ class WeatherData(object):
         CloudHistory:
         """
 
-        self.cloudHistory = None
+        self.cloudHistory = cloudHistory
         self.seeingHistory = seeingHistory 
         self.startDate = startDate
 
@@ -55,14 +55,16 @@ class WeatherData(object):
         seeingColNames = ['days', 'seeing']
 
         cloudHistory = pd.read_csv(CloudTxtFile, delim_whitespace=True)
+        print (len(cloudHistory))
         stripLeadingPoundFromHeaders(cloudHistory)
 
+        print cloudHistory.columns
         cloudHistory['days'] = cloudHistory['c_date'] / DAY_IN_SEC
-        cloudHistory.rename(columns={'cloud', 'cloudFraction'}, inplace=True)
-        cloudColNames = ['days', 'cloud']
+        cloudHistory.rename(columns={'cloud': 'cloudFraction'}, inplace=True)
+        cloudColNames = ['days', 'cloudFraction']
 
         return cls(seeingHistory=seeingHistory[seeingColNames],
-                   cloudHistory=cloudHistory)
+                   cloudHistory=cloudHistory[cloudColNames])
 
     def seeing(self, times, startDate=None, method='linearInterp'):
         """
