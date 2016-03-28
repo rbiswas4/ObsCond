@@ -18,6 +18,7 @@ script:
   - setup lsst_sims
   - python setup.py install 
   - nosetests -v --with-coverage --cover-erase --cover-tests --cover-package=obscond --cover-inclusive --cover-html --cover-html-dir=doc/coverage
+  - nosetests --with-doctest -v -w obscond
 
 after_success:
   - coveralls
