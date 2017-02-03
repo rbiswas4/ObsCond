@@ -48,6 +48,7 @@ def mCalcs(airmass, bandName, ra, dec, expMJD,  FWHMeff, hwbpdict, photparams=No
     # Get the sky sed
     wave, spec = sm.returnWaveSpec()
     sed = Sed(wavelen=wave, flambda=spec[0])
+    sed.writeSED('skySED_laptop.csv')
     m5 = calcM5(sed, bp, hwbpdict[bandName], photparams, FWHMeff)
     # Get the sky magnitude only in the band concerned
     m = sm.returnMags(bandpasses=hwbpdict)[bandName][0]
