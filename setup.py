@@ -20,6 +20,7 @@ setup(name='obscond',
       description='Interpolating Observing Conditions from historic data',
       packages=['obscond'],
       package_dir={'obscond': 'obscond'},
-      package_data={'obscond': ['example_data/*.txt', 'example_data/*.md']},
+      package_data={'obscond': ['example_data/*.txt', 'example_data/*.md',
+                                'example_data/*.csv']},
       include_package_data=True
      )

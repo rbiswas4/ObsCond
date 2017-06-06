@@ -1,3 +1,4 @@
 include example_data/*.md
 include example_data/*.txt
+include example_data/*.csv
 
