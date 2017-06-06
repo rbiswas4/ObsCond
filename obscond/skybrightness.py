@@ -2,10 +2,8 @@ from lsst.sims.photUtils import Sed, calcM5, PhotometricParameters
 from lsst.sims.photUtils import Bandpass, BandpassDict
 import lsst.sims.skybrightness as sb
 from .atmosphere import AirmassDependentBandpass
-
-sm = sb.SkyModel(observatory='LSST', mags=False, preciseAltAz=True)
-
-
+import numpy as np
+import pandas as pd
 
 class SkyCalculations(object):
     def __init__(self,
@@ -21,75 +19,91 @@ class SkyCalculations(object):
                               mags=mags,
                               preciseAltAz=preciseAltAz)
         self.adb = AirmassDependentBandpass(hwBandpassDict) 
-
+    
         self.photparams = photparams
         if self.photparams == 'LSST':
             self.photparams = PhotometricParameters()
 
-        def skymag(self, ra, dec, bandName, mjd, sm=None):
-            """
-            ra : radians
-            dec : radians
-            """
-            if sm is None:
-                sm = self.sm
+    def skymag(self, bandName, ra=None, dec=None, mjd=None,
+               hwBandPassDict=None,
+               sm=None):
+        """
+        ra : radians
+        dec : radians
+        """
+        if hwBandPassDict is None:
+            hwBandPassDict = self.adb.hwbandpassDict
+        if sm is None:
+            sm = self.sm
+        if ra is not None:
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
-            skymag = sm.returnMags(bandpasses=self.adb.hwbandpassDict)['bandName'][0]
-            return skymag
+        skymag = sm.returnMags(bandpasses=hwBandPassDict)[bandName][0]
+        return skymag
 
 
-        def fiveSigmaDepth(self, ra, dec, bandName, mjd, airmass, FWHMeff,
+    def fiveSigmaDepth(self, bandName, airmass, FWHMeff, ra=None, dec=None,
+                       mjd=None, sm=None):
+        """
+        """
+        if sm is None:
+            sm = self.sm
+        if ra is not None:
+            sm.setRaDecMjd(lon=ra, lat=dec,
+                           filterNames=bandName, mjd=mjd,
+                           degrees=False, azAlt=False)
+        # SED 
+        wave, spec = sm.returnWaveSpec()
+        sed = Sed(wavelen=wave, flambda=spec[0])
+        bp = self.adb.bandpassForAirmass(bandName, airmass) 
+        fieldmags = calcM5(sed, bp, self.adb.hwbandpassDict[bandName], self.photparams,
+                           FWHMeff)
+        return fieldmags
+
+    def calculatePointings(self, pointings,
+                           raCol='fieldRA', 
+                           decCol='fieldDec',
+                           bandCol='filter',
+                           mjdCol='expMJD',
+                           airmassCol='airmass',
+                           FWHMeffCol='FWHMeff',
+                           calcSkyMags=True,
+                           calcDepths=True,
+                           hwBandPassDict=None,
                            sm=None):
-            """
-            """
-            if sm is None:
-                sm = self.sm
+        """
+        """
+        if hwBandPassDict is None:
+            hwBandPassDict = self.adb.hwbandpassDict
+        if sm is None:
+            sm = self.sm
+
+        num = len(pointings)
+        idxs = np.zeros(num)
+        skymags = np.zeros(num)
+        fiveSigmaDepth = np.zeros(num)
+
+
+        count = 0 
+        for obsHistID, row in pointings.iterrows():
+            ra  =row[raCol]
+            dec  =row[decCol]
+            bandName = row[bandCol]
+            airmass = row[airmassCol]
+            mjd = row[mjdCol]
+            FWHMeff = row[FWHMeffCol]
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
-            # SED 
-            wave, spec = sm.returnWaveSpec()
-            sed = Sed(wavelen=wave, flambda=spec[0])
-            bp = self.adb.bandpassForAirmass(bandName, airmass) 
-            fieldmags = calcM5(sed, bp, self.adb.hwbandpassDict, self.photparams,
-                               FWHMeff)
-            return fieldmags
+            if calcDepths:
+                fiveSigmaDepth[count] = self.fiveSigmaDepth(bandName, airmass,
+                                                         FWHMeff, sm=sm)
+            if calcSkyMags:
+                skymags[count] = self.skymag(bandName, sm=sm, hwBandPassDict=hwBandPassDict)
 
-        def calculatePointings(self, pointings,
-                               raCol='fieldRA', 
-                               decCol='fieldDec',
-                               bandCol='filter',
-                               mjdCol='expMJD',
-                               airmassCol='airmass',
-                               FWHMeffCol='FWHMeff',
-                               calcSkyMags=True,
-                               calcDepths=True,
-                               sm=skyModel):
-            """
-            """
-            num = len(pointings)
-            idxs = np.zeros(num)
-            skymag = np.zeros(num)
-            fiveSigmaDepth = np.zeros(num)
+            idxs[count] = obsHistID
+            count += 1
 
-            count = 0 
-            for obsHistID, row in pointings.iterrows():
-                ra  =row['raCol']
-                dec  =row['decCol']
-                bandname = row[bandCol]
-                airmass = row[airmassCol]
-                mjd = row[mjdCol]
-                FWHMeff = row[FWHMeffCol]
-                sm.setRaDecMjd(lon=ra, lat=dec,
-                               filterNames=bandName, mjd=mjd,
-                               degrees=False, azAlt=False)
-                if calcDepths:
-                    fiveSigmaDepths[i] = fiveSigmaDepth(self, ra, dec,
-                                                        bandName, mjd, airmass,
-                                                        FWHMeff, sm=sm)
-                if calcSkyMags:
-                    skymag[i] = skymag(self, ra, dec, bandName, mjd, sm=None)
-
-                idxs[count] = obsHistID
+        return pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
+                                 fiveSigmaDepth=fiveSigmaDepth)).set_index('obsHistID')
