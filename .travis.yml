@@ -1,7 +1,8 @@
 language: C
 
 install:
-  - CHANNEL=http://conda.lsst.codes/sims ./install.sh lsst-sims
+  - CHANNEL=http://conda.lsst.codes/sims 
+  - travis_wait 20 ./install.sh lsst-sims
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
   - setup lsst_sims
