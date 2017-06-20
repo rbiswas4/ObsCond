@@ -2,7 +2,7 @@ language: python
 python:
     - "2.7"
 install:
-  - travis_wait 25 ./continuous_integration/travis_install.sh lsst_sims
+  - travis_wait 30 ./continuous_integration/travis_install.sh lsst_sims
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
   - setup lsst_sims
