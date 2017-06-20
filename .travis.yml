@@ -2,7 +2,7 @@ language: python
 python:
     - "2.7"
 install:
-  - travis wait 25 ./continuous_integration/travis_install.sh
+  - travis_wait 25 ./continuous_integration/travis_install.sh
   - source ./continuous_integration/setup_envs.sh
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
