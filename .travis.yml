@@ -1,16 +1,18 @@
-language: C
-
+language: python
+python:
+    - "2.7"
 install:
-  - CHANNEL=http://conda.lsst.codes/sims ./install.sh lsst-sims pandas nose
+  - travis wait 25 ./continuous_integration/travis_install.sh
+  - source ./continuous_integration/setup_envs.sh
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
   - setup lsst_sims
   - pip install python-coveralls
   - pip install coveralls
   - pip install coverage
-cache:
-  directories:
-  - $HOME/miniconda.tarball
+#cache:
+#  directories:
+#  - $HOME/miniconda.tarball
 
 # A trivial example to show that this worked
 script:
