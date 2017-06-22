@@ -1,10 +1,13 @@
 language: C
 
 install:
-  - CHANNEL=http://conda.lsst.codes/sims ./install.sh lsst-sims pandas nose
+  - CHANNEL=http://conda.lsst.codes/sims 
+  - travis_wait 20 ./install.sh lsst-sims
   - export PATH="$HOME/miniconda/bin:$PATH"
   - source eups-setups.sh
   - setup lsst_sims
+  - conda install -c anaconda pandas
+  - conda install -c openastronomy healpy
   - pip install python-coveralls
   - pip install coveralls
   - pip install coverage

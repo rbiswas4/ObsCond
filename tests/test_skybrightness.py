@@ -12,6 +12,9 @@ class TestSkyBrightness(unittest.TestCase):
         assert_almost_equal(skymag, 18.8900, decimal=2) 
 
     def test_skyDepths(self):
-        m5 = self.skycalc.fiveSigmaDepth('g', 1.008652, 1.086662, 0.925184, -0.4789, 61044.077855)
+        m5 = self.skycalc.fiveSigmaDepth('g', 1.086662, 0.925184, -0.4789,
+                                        61044.077855,
+                                        provided_airmass=1.008652,
+                                        use_provided_airmass=True)
         assert_almost_equal(m5, 23.0601, decimal=2)
 

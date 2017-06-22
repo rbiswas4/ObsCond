@@ -6,18 +6,43 @@ import numpy as np
 import pandas as pd
 
 class SkyCalculations(object):
+    """
+    Class for calculating sky brightnesses and related quantities, as well as
+    coordinates. All the heavy lifting is done in `lsst.sims_skybrightness`.
+    The main functionality of this wrapper is to fix some of the freedome in
+    `sims_skybrightness` to useful choices through defaults to optional
+    parameters, thereby simplifiying the usage.
+
+    Among the provisos of the sky model, an important one to recall is that the
+    skymagnitudes are only calculated to an airmass of 2.5. For airmasses which
+    are beyond that value, the default settings we use will return values for
+    an inconsistent airmass of 2.5. This is different from the default setting
+    of `sims.skybrightness` model, where this would return `np.nan`
+    """
     def __init__(self,
                  observatory='LSST',
-                 mags=False,
-                 preciseAltAz=True,
                  hwBandpassDict=None,
-                 photparams = None,
-                 pointings=None):
+                 pointings=None,
+                 photparams=None,
+                 airmass_limit=4.0,
+                 mags=False,
+                 preciseAltAz=True
+                 ):
         """
+        Parameters
+        ----------
+        observatory : 
+        mags : 
+        preciseAltAz :
+        hwBandpassDict :
+        photparams :
+        pointings :
+        airmass_limit :
         """
         self.sm = sb.SkyModel(observatory=observatory,
                               mags=mags,
-                              preciseAltAz=preciseAltAz)
+                              preciseAltAz=preciseAltAz,
+                              airmass_limit=airmass_limit)
         self.adb = AirmassDependentBandpass(hwBandpassDict) 
     
         self.photparams = photparams
@@ -43,8 +68,9 @@ class SkyCalculations(object):
         return skymag
 
 
-    def fiveSigmaDepth(self, bandName, airmass, FWHMeff, ra=None, dec=None,
-                       mjd=None, sm=None):
+    def fiveSigmaDepth(self, bandName, FWHMeff, ra=None, dec=None,
+                       mjd=None, sm=None, provided_airmass=None,
+                       use_provided_airmass=True):
         """
         """
         if sm is None:
@@ -53,10 +79,16 @@ class SkyCalculations(object):
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
+        airmass = sm.airmass
         # SED 
         wave, spec = sm.returnWaveSpec()
         sed = Sed(wavelen=wave, flambda=spec[0])
-        bp = self.adb.bandpassForAirmass(bandName, airmass) 
+        amass = airmass
+        if use_provided_airmass and provided_airmass is not None:
+            amass = provided_airmass
+        else:
+            amass = airmass
+        bp = self.adb.bandpassForAirmass(bandName, amass) 
         fieldmags = calcM5(sed, bp, self.adb.hwbandpassDict[bandName], self.photparams,
                            FWHMeff)
         return fieldmags
@@ -66,10 +98,10 @@ class SkyCalculations(object):
                            decCol='fieldDec',
                            bandCol='filter',
                            mjdCol='expMJD',
-                           airmassCol='airmass',
                            FWHMeffCol='FWHMeff',
                            calcSkyMags=True,
                            calcDepths=True,
+                           calcPointingCoords=True,
                            hwBandPassDict=None,
                            sm=None):
         """
@@ -83,6 +115,9 @@ class SkyCalculations(object):
         idxs = np.zeros(num)
         skymags = np.zeros(num)
         fiveSigmaDepth = np.zeros(num)
+        airmass = np.zeros(num)
+        altitude = np.zeros(num)
+        azimuth = np.zeros(num)
 
 
         count = 0 
@@ -90,20 +125,32 @@ class SkyCalculations(object):
             ra  =row[raCol]
             dec  =row[decCol]
             bandName = row[bandCol]
-            airmass = row[airmassCol]
             mjd = row[mjdCol]
             FWHMeff = row[FWHMeffCol]
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
+
+            if calcPointingCoords:
+                airmass[count] = sm.airmass[0]
+                altitude[count] = sm.alts[0]
+                azimuth[count] = sm.azs[0]
+
             if calcDepths:
-                fiveSigmaDepth[count] = self.fiveSigmaDepth(bandName, airmass,
-                                                         FWHMeff, sm=sm)
+                fiveSigmaDepth[count] = self.fiveSigmaDepth(bandName,
+                                                            FWHMeff, sm=sm,
+                                                            provided_airmass=airmass[count],
+                                                            use_provided_airmass=False)
             if calcSkyMags:
                 skymags[count] = self.skymag(bandName, sm=sm, hwBandPassDict=hwBandPassDict)
 
             idxs[count] = obsHistID
             count += 1
 
-        return pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
-                                 fiveSigmaDepth=fiveSigmaDepth)).set_index('obsHistID')
+        df = pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
+                                 fiveSigmaDepth=fiveSigmaDepth,
+                                 altitude=altitude,
+                                 azimuth=azimuth,
+                                 airmass=airmass)).set_index('obsHistID')
+        df.index = df.index.astype(np.int64)
+        return df
