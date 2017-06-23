@@ -37,18 +37,22 @@ sys.stdout.flush()
 # Read the opsim data base and start logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+tstart = time.time()
+logger.info('Start Program at time {}'.format(tstart))
 print('Healpy version: ', hp.__version__)
 print('numpy version: ', np.__version__)
 print('healpy dir', getPackageDir('healpy'))
 print('sims_skybrightness_dir', getPackageDir('sims_skybrightness'))
 print('sims_skybrightness_data_dir', getPackageDir('sims_skybrightness_data'))
+print('obscond version', obscond.__version__)
 
 logger.info('Start reading opsim database')
-# minion_out = '/local/lsst/rbiswas/data/LSST/OpSimData/minion_1016_sqlite.db'
-minion_out = '/Users/rbiswas/data/LSST/OpSimData/minion_1016_sqlite.db'
+minion_out = '/local/lsst/rbiswas/data/LSST/OpSimData/minion_1016_sqlite.db'
+#minion_out = '/Users/rbiswas/data/LSST/OpSimData/minion_1016_sqlite.db'
 opsout = OpSimOutput.fromOpSimDB(minion_out, zeroDDFDithers=True, subset="unique_all")
-print('reading done')
-df = opsout.summary.copy().iloc[:100]
+# opsout = OpSimOutput.fromOpSimDB(minion_out, zeroDDFDithers=True, subset="ddf")
+print('reading done\n')
+df = opsout.summary.copy()
 logger.info('Finished reading database at {}'.format(time.time()))
 
 totalbpdict, hwbpdict = BandpassDict.loadBandpassesFromFiles()
@@ -56,15 +60,16 @@ photparams = PhotometricParameters()
 
 
 # Split the entries in the opsim database for parallelization
-splits = 10
+splits = 1000
 dfs = np.array_split(df, splits)
-print('splitting dataframe of size {0} into {1} splits each of size {2}'.format(len(df), splits, len(dfs[0])))
+print('splitting dataframe of size {0} into {1} splits each of size {2}\n'.format(len(df), splits, len(dfs[0])))
 
 calcdfs = []
 def recalcmags(j):
     logfname = 'newres_{}.log'.format(j)
+    tsplitstart = time.time()
     with open(logfname, 'w') as f:
-        f.write('starting split {} \n'.format(j))
+        f.write('starting split {0} at time {1}\n'.format(j, tsplitstart))
     df = dfs[j]
     sm = sb.SkyModel(observatory='LSST', mags=False, preciseAltAz=True)
     skycalc = obscond.SkyCalculations(photparams="LSST", hwBandpassDict=hwbpdict)
@@ -72,15 +77,20 @@ def recalcmags(j):
     fname = 'newres{}.hdf'.format(j)
     df_res = skycalc.calculatePointings(df)
     with open(logfname, mode='a+') as f:
-        f.write('dataframe calculated')
+        f.write('dataframe calculated\n')
     df_res.to_hdf(fname, key='0')
+    tsplitend = time.time()
     with open(logfname, mode='a+') as f:
-        f.write('dataframe written')
-    return df
+        f.write('dataframe written at time {} \n'.format(tsplitend))
+        f.write('For dataframe of size {0} time taken is {1}\n'.format(len(df_res), tsplitend - tsplitstart))
+    return df_res
 
 ndf = Parallel(n_jobs=-1)(delayed(recalcmags)(j=j) for j in range(splits)) 
-print('After loops are over, this is the number of dataframes', len(ndf))
+print('After loops are over, this is the number of dataframes\n', len(ndf))
 newdf = pd.concat(ndf)
-print('number of lines {}'.format(len(newdf)))
+print('number of lines {}\n'.format(len(newdf)))
 newdf.to_hdf('newOpSim.hdf', key='0')
+tend = time.time() 
+logger.info('End Program at time {} sec'.format(tend))
+logger.info('Time taken is {} sec'.format(tend - tstart))
 print('DONE')
