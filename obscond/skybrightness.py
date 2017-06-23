@@ -102,10 +102,13 @@ class SkyCalculations(object):
                            calcSkyMags=True,
                            calcDepths=True,
                            calcPointingCoords=True,
+                           calcMoonSun=True,
                            hwBandPassDict=None,
                            sm=None):
         """
         """
+        resultCols = []
+
         if hwBandPassDict is None:
             hwBandPassDict = self.adb.hwbandpassDict
         if sm is None:
@@ -118,6 +121,13 @@ class SkyCalculations(object):
         airmass = np.zeros(num)
         altitude = np.zeros(num)
         azimuth = np.zeros(num)
+        moonRA = np.zeros(num)
+        moonDec = np.zeros(num)
+        moonAlt = np.zeros(num)
+        moonAZ = np.zeros(num)
+        moonPhase = np.zeros(num)
+        sunAlt = np.zeros(num)
+        sunAz = np.zeros(num)
 
 
         count = 0 
@@ -130,19 +140,38 @@ class SkyCalculations(object):
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
-
+            mydict = sm.getComputedVals()
             if calcPointingCoords:
-                airmass[count] = sm.airmass[0]
-                altitude[count] = sm.alts[0]
-                azimuth[count] = sm.azs[0]
+                if count == 0:
+                    resultCols += ['airmass', 'altitude' , 'azimuth']
+                airmass[count] = mydict['airmass'][0]
+                altitude[count] = mydict['alts'][0]
+                azimuth[count] = mydict['azs'][0]
+
+            if calcMoonSun:
+                if count == 0:
+                    resultCols += ['moonRA', 'moonDec' , 'moonAlt', 'moonAZ', 'moonPhase']
+                    resultCols += ['sunAlt', 'sunAz']
+                moonRA[count] = mydict['moonRA']
+                moonDec[count] = mydict['moonDec']
+                moonAlt[count] = mydict['moonAlt']
+                moonAZ[count] = mydict['moonAz']
+                moonPhase[count] = mydict['moonPhase']
+                sunAlt[count] = mydict['sunAlt']
+                sunAz[count] = mydict['sunAz']
 
             if calcDepths:
+                if count == 0:
+                    resultCols += ['fiveSigmaDepth']
                 fiveSigmaDepth[count] = self.fiveSigmaDepth(bandName,
                                                             FWHMeff, sm=sm,
                                                             provided_airmass=airmass[count],
                                                             use_provided_airmass=False)
             if calcSkyMags:
-                skymags[count] = self.skymag(bandName, sm=sm, hwBandPassDict=hwBandPassDict)
+                if count == 0:
+                    resultCols += ['filtSkyBrightness']
+                skymags[count] = self.skymag(bandName, sm=sm,
+                                             hwBandPassDict=hwBandPassDict)
 
             idxs[count] = obsHistID
             count += 1
@@ -151,6 +180,13 @@ class SkyCalculations(object):
                                  fiveSigmaDepth=fiveSigmaDepth,
                                  altitude=altitude,
                                  azimuth=azimuth,
-                                 airmass=airmass)).set_index('obsHistID')
+                                 airmass=airmass,
+                                 moonRA=moonRA,
+                                 moonDec=moonDec,
+                                 moonAZ=moonAZ,
+                                 moonAlt=moonAlt,
+                                 moonPhase=moonPhase,
+                                 sunAlt=sunAlt,
+                                 sunAz=sunAz)).set_index('obsHistID')
         df.index = df.index.astype(np.int64)
-        return df
+        return df[resultCols]
