@@ -1,3 +1,5 @@
+from __future__ import print_function, absolute_import
+__all__ = ['WeatherData']
 import os
 import pandas as pd
 import sys
@@ -5,7 +7,6 @@ import numpy as np
 from .constants import *
 from .io import *
 
-__all__ = ['WeatherData']
 
 SeeingFile = os.path.join(example_data_dir, 'SeeingPachon.txt')
 CloudFile = os.path.join(example_data_dir, 'CloudTololo.txt')
@@ -55,10 +56,10 @@ class WeatherData(object):
         seeingColNames = ['days', 'seeing']
 
         cloudHistory = pd.read_csv(CloudTxtFile, delim_whitespace=True)
-        print (len(cloudHistory))
+        print(len(cloudHistory))
         stripLeadingPoundFromHeaders(cloudHistory)
 
-        print cloudHistory.columns
+        print(cloudHistory.columns)
         cloudHistory['days'] = cloudHistory['c_date'] / DAY_IN_SEC
         cloudHistory.rename(columns={'cloud': 'cloudFraction'}, inplace=True)
         cloudColNames = ['days', 'cloudFraction']
