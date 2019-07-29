@@ -134,9 +134,8 @@ class SkyCalculations(object):
         for obsHistID, row in pointings.iterrows():
             ra  =row[raCol]
             dec  =row[decCol]
-            bandName = row[bandCol]
             mjd = row[mjdCol]
-            FWHMeff = row[FWHMeffCol]
+            bandName = row[bandCol]
             sm.setRaDecMjd(lon=ra, lat=dec,
                            filterNames=bandName, mjd=mjd,
                            degrees=False, azAlt=False)
@@ -161,6 +160,8 @@ class SkyCalculations(object):
                 sunAz[count] = mydict['sunAz']
 
             if calcDepths:
+                bandName = row[bandCol]
+                FWHMeff = row[FWHMeffCol]
                 if count == 0:
                     resultCols += ['fiveSigmaDepth']
                 fiveSigmaDepth[count] = self.fiveSigmaDepth(bandName,
@@ -168,6 +169,7 @@ class SkyCalculations(object):
                                                             provided_airmass=airmass[count],
                                                             use_provided_airmass=False)
             if calcSkyMags:
+                bandName = row[bandCol]
                 if count == 0:
                     resultCols += ['filtSkyBrightness']
                 skymags[count] = self.skymag(bandName, sm=sm,
@@ -176,17 +178,30 @@ class SkyCalculations(object):
             idxs[count] = obsHistID
             count += 1
 
-        df = pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
-                                 fiveSigmaDepth=fiveSigmaDepth,
-                                 altitude=altitude,
-                                 azimuth=azimuth,
-                                 airmass=airmass,
-                                 moonRA=moonRA,
-                                 moonDec=moonDec,
-                                 moonAZ=moonAZ,
-                                 moonAlt=moonAlt,
-                                 moonPhase=moonPhase,
-                                 sunAlt=sunAlt,
-                                 sunAz=sunAz)).set_index('obsHistID')
+        if calcDepths:
+            df = pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
+                                   fiveSigmaDepth=fiveSigmaDepth,
+                                   altitude=altitude,
+                                   azimuth=azimuth,
+                                   airmass=airmass,
+                                   moonRA=moonRA,
+                                   moonDec=moonDec,
+                                   moonAZ=moonAZ,
+                                   moonAlt=moonAlt,
+                                   moonPhase=moonPhase,
+                                   sunAlt=sunAlt,
+                                   sunAz=sunAz)).set_index('obsHistID')
+        else:
+            df = pd.DataFrame(dict(obsHistID=idxs, filtSkyBrightness=skymags,
+                                   altitude=altitude,
+                                   azimuth=azimuth,
+                                   airmass=airmass,
+                                   moonRA=moonRA,
+                                   moonDec=moonDec,
+                                   moonAZ=moonAZ,
+                                   moonAlt=moonAlt,
+                                   moonPhase=moonPhase,
+                                   sunAlt=sunAlt,
+                                   sunAz=sunAz)).set_index('obsHistID')
         df.index = df.index.astype(np.int64)
         return df[resultCols]
